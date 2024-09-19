@@ -5,14 +5,14 @@ use bytes::Bytes;
 use image::{DynamicImage, ImageBuffer, ImageOutputFormat};
 use lazy_static::lazy_static;
 use photon_rs::{
-    effects, filters, multiple, native::open_image_from_bytes, transform, PhotonImage,
+    effects, filters, multiple, native::open_image_from_bytes, transform, PhotonImage, Rgba,
 };
 use std::convert::TryFrom;
 
 lazy_static! {
     static ref WATERMARK: PhotonImage = {
-        let data = include_bytes!("../../rust-logo.png");
-        let watermark = open_image_from_bytes!(data).unwrap();
+        let data = include_bytes!("../../image.png");
+        let watermark = open_image_from_bytes(data).unwrap();
         transform::resize(&watermark, 64, 64, transform::SamplingFilter::Nearest)
     };
 }
@@ -20,9 +20,9 @@ lazy_static! {
 // 我们目前支持 Photon engine
 pub struct Photon(PhotonImage);
 
-impl TryFrom for Photon {
+impl TryFrom<Bytes> for Photon {
     type Error = anyhow::Error;
-    fn try_from(data: Bytes) -> Result {
+    fn try_from(data: Bytes) -> Result<Self, Self::Error> {
         Ok(Self(open_image_from_bytes(&data)?))
     }
 }
@@ -38,6 +38,7 @@ impl Engine for Photon {
                 Some(spec::Data::Flipv(ref v)) => self.transform(v),
                 Some(spec::Data::Resize(ref v)) => self.transform(v),
                 Some(spec::Data::Watermark(ref v)) => self.transform(v), // 对于目前不认识的 spec，不做任何处理
+                Some(spec::Data::PaddingBottom(ref v)) => self.transform(v),
                 _ => {}
             }
         }
@@ -97,4 +98,25 @@ impl SpecTransform<&Watermark> for Photon {
     fn transform(&mut self, op: &Watermark) {
         multiple::watermark(&mut self.0, &WATERMARK, op.x, op.y);
     }
+}
+
+impl SpecTransform<&PaddingBottom> for Photon {
+    fn transform(&mut self, op: &PaddingBottom) {
+        let rgba = Rgba::new(255_u8, 255_u8, 255_u8, 255_u8);
+        let img = transform::padding_bottom(&mut self.0, op.x, rgba);
+        self.0 = img;
+    }
+}
+
+fn image_to_buf(img: PhotonImage, format: ImageOutputFormat) -> Vec<u8> {
+    let raw_pixels = img.get_raw_pixels();
+    let width = img.get_width();
+    let height = img.get_height();
+
+    let img_buffer = ImageBuffer::from_vec(width, height, raw_pixels).unwrap();
+    let dynimage = DynamicImage::ImageRgba8(img_buffer);
+
+    let mut buffer = Vec::with_capacity(32768);
+    dynimage.write_to(&mut buffer, format).unwrap();
+    buffer
 }

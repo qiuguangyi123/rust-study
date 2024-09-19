@@ -67,6 +67,10 @@ message Watermark {
   uint32 y = 2;
 }
 
+message PaddingBottom{
+  uint32 x = 1;
+}
+
 message Spec {
   oneof data {
     Resize resize = 1;  // 处理图片改变大小
@@ -76,5 +80,7 @@ message Spec {
     Contrast contrast = 5;  // 处理对比度
     Filter filter = 6;  // 处理滤镜
     Watermark watermark = 7;  // 处理水印
+    PaddingBottom padding_bottom = 8; // 填充图片
   }
 }
+

@@ -1,4 +1,4 @@
-use create::pb::Spec;
+use crate::pb::Spec;
 use image::ImageOutputFormat;
 
 mod photon;
@@ -9,7 +9,7 @@ pub trait Engine {
     fn generate(self, format: ImageOutputFormat) -> Vec<u8>;
 }
 
-pub trait SpecTransform {
+pub trait SpecTransform<T> {
     // 对图片使用 op 做 transform
     fn transform(&mut self, op: T);
 }

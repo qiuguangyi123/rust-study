@@ -23,6 +23,10 @@ mod pb;
 
 use pb::*;
 
+mod engine;
+use engine::{Engine, Photon};
+use image::ImageOutputFormat;
+
 #[derive(Deserialize)]
 struct Params {
     spec: String,
@@ -68,12 +72,20 @@ async fn generate(
     let data = retrieve_image(&url, cache)
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
-    // TODO: 处理图片
 
+    // TODO: 处理图片
+    let mut engine: Photon = data
+        .try_into()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    engine.apply(&spec.specs);
+
+    let image = engine.generate(ImageOutputFormat::Jpeg(85));
+    info!("Finished processing: image size {}", image.len());
     let mut headers = HeaderMap::new();
+
     headers.insert("content-type", HeaderValue::from_static("image/jpeg"));
 
-    Ok((headers, data.to_vec()))
+    Ok((headers, image))
 }
 
 #[instrument(level = "info", skip(cache))]
@@ -106,7 +118,8 @@ fn print_test_url(url: &str) {
     let spec1 = Spec::new_resize(500, 800, resize::SampleFilter::CatmullRom);
     let spec2 = Spec::new_watermark(20, 20);
     let spec3 = Spec::new_filter(filter::Filter::Marine);
-    let image_spec = ImageSpec::new(vec![spec1, spec2, spec3]);
+    let spec4 = Spec::new_padding_bottom(100);
+    let image_spec = ImageSpec::new(vec![spec1, spec2, spec3, spec4]);
     let s: String = image_spec.borrow().into();
     let test_image = percent_encode(url.as_bytes(), NON_ALPHANUMERIC).to_string();
     println!("test url: http://localhost:3000/image/{}/{}", s, test_image);
