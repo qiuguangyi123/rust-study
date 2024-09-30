@@ -16,7 +16,8 @@ impl<'a> Fetch for UrlFetcher<'a> {
     type Error = anyhow::Error;
     async fn fetch(&self) -> Result<String, Self::Error> {
         let response = reqwest::get(self.0).await?;
-        Ok(response.text().await?)
+        let text = response.text().await?;
+        Ok(text)
     }
 }
 #[async_trait]
